@@ -81,3 +81,56 @@ def test_problem3():
     expected = 3.1
     assert_valid(actual, expected)
     
+def test_problem4():
+    Q_ = config.Q_
+    
+    state1 = Isen(36, T = Q_(330, 'K'))
+    
+    actual = state1.T0.to('K').m
+    expected = 85866
+    assert_valid(actual, expected)
+
+def test_problem5():
+    Q_ = config.Q_
+    
+    shock1 = Normal(3, T = Q_(300, 'K'), P = Q_(1.5, 'atm'))
+    
+    actual = shock1.T0.to('K').m
+    expected = 840
+    assert_valid(actual, expected)
+    
+    actual = shock1.P0.to('atm').m
+    expected = 55.10
+    assert_valid(actual, expected)
+    
+    actual = shock1.r.to('kg/m^3').m
+    expected = 1.765
+    assert_valid(actual, expected)
+    
+    actual = shock1.mach2.to('').m
+    expected = 0.475
+    assert_valid(actual, expected)
+    
+    actual = shock1.T2.to('K').m
+    expected = 803.70
+    assert_valid(actual, expected)
+    
+    actual = shock1.T02.to('K').m
+    expected = 840
+    assert_valid(actual, expected)
+    
+    actual = shock1.P2.to('atm').m
+    expected = 15.5
+    assert_valid(actual, expected)
+    
+    actual = shock1.P02.to('atm').m
+    expected = 18.091
+    assert_valid(actual, expected)
+    
+    actual = shock1.r2.to('kg/m^3').m
+    expected = 6.806
+    assert_valid(actual, expected)
+    
+    actual = shock1.P02_P01.to('').m
+    expected = 0.3283
+    assert_valid(actual, expected)
