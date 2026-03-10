@@ -13,7 +13,19 @@ class Shock(Isen):
     
     def __init__(self, M, **kwargs):
         if (M < 1): raise ValueError(f"shock cannot occure with subsonic mach (M = {M})")
-        super().__init__(M, **kwargs)
+        
+        if isinstance(M, Normal) or isinstance(M, Oblique):
+            M = M.state2
+            
+        if isinstance(M, Isen):
+            state = M
+            mach = config.Q_(state.mach).m
+            
+            super().__init__(mach, **kwargs)
+            self.propagate_state(state)
+            
+        else:
+            super().__init__(M, **kwargs)
     
     def propagate_state(self, state: Isen):
         return super().propagate_state(state)
@@ -75,19 +87,8 @@ class Shock(Isen):
 class Normal(Shock):
     
     def __init__(self, M = 1, **kwargs):
-                
-        if isinstance(M, Normal): # or isinstance(M, Oblique):
-            M = M.state2
-            
-        if isinstance(M, Isen):
-            state = M
-            mach = config.Q_(state.mach).m
-            
-            super().__init__(mach, **kwargs)
-            self.propagate_state(state)
-            
-        else:
-            super().__init__(M, **kwargs)
+        super().__init__(M, **kwargs)
+        
     
     @property
     def state2(self):
@@ -236,3 +237,40 @@ class Normal(Shock):
 # ============================================================ 
 # Oblique Shock
 # ============================================================
+
+def thetaMachBeta(mach1, beta):
+    theta = beta - np.atan((5/(np.pow(mach1*np.sin(beta), 2)) + 1) * np.tan(beta)/6)
+    return theta
+
+class Oblique(Shock):
+    
+    def __init__(self, M, beta, **kwargs):
+        super().__init__(M, **kwargs)
+        
+        #self.beta = beta
+        
+    @property
+    def beta_max(self):
+        mach = self.mach.to('').m
+        beta_max = optimize.optimize(lambda B: thetaMachBeta(mach, B), np.pi / 4)
+        return config.Q_(beta_max,'rad')
+        
+    @property
+    def theta_max(self):
+        return thetaMachBeta(self.mach, self.beta_max)
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
