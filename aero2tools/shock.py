@@ -28,9 +28,45 @@ class Shock(Isen):
         try: self.P = state.P2
         except TypeError: pass
         
-        try: self.rho = state.rho2
+        try: self.r = state.r2
         except TypeError: pass
+    
+    def __getattr__(self, name):
         
+        try:
+            match name:
+                case 'T2': 
+                    return self.T2_T1 * self.T
+                
+                case 'P2': 
+                    return self.P2_P1 * self.P
+                
+                case 'r2': 
+                    return self.r2_r1 * self.r
+                
+                case 'P02': 
+                    return self.P02_P01 * self.P0
+                
+                case 'T02': 
+                    return self.T0
+                
+                case 'ds':
+                    return -config.R * np.log(self.P02_P01)
+                
+                case 'T0_T2':
+                    return self.T0_T / self.T2_T1
+                
+                case 'P0_P2':
+                    return self.P0_P / self.P2_P1
+                
+                case 'r0_r2':
+                    return self.r0_r / self.r2_r1
+        
+        except TypeError:
+            raise TypeError(f"Invalid Type: please assign values to normal shock")
+        
+        raise AttributeError(f"Normal has no attirubte \'{name}\'")
+    
 
 # ============================================================ 
 # Normal Shock
@@ -117,7 +153,7 @@ class Normal(Shock):
     # --------------
     @property
     def T2_T1(self):
-        return self.P2_P1 / self.rho2_rho1
+        return self.P2_P1 / self.r2_r1
     
     @T2_T1.setter
     def T2_T1(self, T2_T1):
@@ -169,7 +205,7 @@ class Normal(Shock):
         
         b1 = (34*self.GAMMA)/(3*(self.GAMMA+1)) * K
         
-        c1 = (17*self.AMMA + 1)/(self.GAMMA + 1) * K
+        c1 = (17*self.GAMMA + 1)/(self.GAMMA + 1) * K
         
         a = a1 / 2
         b = b1 - 3*a1
@@ -195,46 +231,8 @@ class Normal(Shock):
                 return
         
         return super().__setattr__(name, value)
-
-    def __getattr__(self, name):
         
-        try:
-            match name:
-                case 'T2': 
-                    return self.T2_T1 * self.T
-                
-                case 'P2': 
-                    return self.P2_P1 * self.P
-                
-                case 'rho2': 
-                    return self.rho2_rho1 * self.rho
-                
-                case 'P02': 
-                    return self.P02_P01 * self.P0
-                
-                case 'T02': 
-                    return self.T0
-                
-                case 'ds':
-                    return -config.R * np.log(self.P02_P01)
-                
-                case 'T0_T2':
-                    return self.T0 / self.T2
-                
-                case 'P0_P2':
-                    return self.P0 / self.P2
-                
-                case 'rho0_rho2':
-                    return self.rho0 / self.rho2
-                
-                case "state2":
-                    return Isen(self.mach2)
-                
-        except TypeError:
-            raise TypeError(f"Invalid Type: please assign values to normal shock")
-        
-        raise AttributeError(f"Normal has no attirubte \'{name}\'")
 
-
-
-
+# ============================================================ 
+# Oblique Shock
+# ============================================================

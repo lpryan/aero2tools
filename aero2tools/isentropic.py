@@ -48,13 +48,9 @@ class Isen:
             self.r  = kwargs.get("r",  None)
             self.r0 = kwargs.get("r0", None) if (self.r is None) else None
         else:
-            self.r = None
-            self.r0 = None
+            self.r = IdealGas.dens(self.P, self.T)
         
         self.vel = kwargs.get("vel", None)
-        
-        
-        
         
         setattr(self, "_generating", False)
         
@@ -123,10 +119,10 @@ class Isen:
     #-----
     @property
     def r0_r(self):
-        return self._rho0_rho
+        return self._r0_r
     
     @r0_r.setter
-    def rho0_rho(self, r0r: float):
+    def r0_r(self, r0r: float):
         self.mach = np.sqrt(2/(self.GAMMA - 1) * (np.pow(r0r, (self.GAMMA - 1)) - 1))
 
 
@@ -263,13 +259,11 @@ class Isen:
             match validIdealGas[0]:
                 case "T":
                     self.T = IdealGas.temp(self.P, self.r)
-                    return
                 case "P":
                     self.P = IdealGas.pres(self.T, self.r)
-                    return
                 case "r":
                     self.r = IdealGas.dens(self.P, self.T)
-                    return
+            return
         
         if name in dir(self):
             super().__setattr__(name, value)
@@ -328,7 +322,7 @@ class Isen:
     # string
     def __str__(self):
         return "-"*3+"Isentropic"+"-"*3+f"\nmach: {self.mach:>6.3f~P}\tT0/T: {self.T0_T:>6.3f~P}" + \
-               f"\nP0/P: {self.P0_P:>6.3f~P}\tρ0/ρ: {self.rho0_rho:>6.3f~P}"
+               f"\nP0/P: {self.P0_P:>6.3f~P}\tρ0/ρ: {self.r0_r:>6.3f~P}"
 
 
 
