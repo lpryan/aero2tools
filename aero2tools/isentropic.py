@@ -312,6 +312,8 @@ class Isen:
     
     def propagate_state(self, state):
         
+        self.mach = state.mach
+        
         try: self.T = state.T
         except TypeError: pass
         
