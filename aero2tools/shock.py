@@ -266,14 +266,13 @@ class Oblique(Shock):
     
     
     def BetaMax(mach = None):
-        if mach is None:
-            mach = mach.to('').m
+        mach = config.Q_(mach).to('').m
         beta_max = optimize.optimize(lambda B: thetaMachBeta(mach, B), np.pi / 4)
         return config.Q_(beta_max,'rad')
     
     @property
     def beta_max(self):
-        return self.BetaMax(self.mach)
+        return Oblique.BetaMax(self.mach)
     
     @property
     def theta_max(self):
@@ -359,14 +358,23 @@ class Oblique(Shock):
         return shock1
     
     @staticmethod
-    def IsenTheta(state1: Isen, theta, strong = True, **kwargs):
+    def IsenTheta(state1: Isen | float, theta, strong = True, **kwargs):
         Q_ = config.Q_
         
         if isinstance(state1, Shock):
             mach1 = Q_(state1.mach2).m
 
-        else:
+        elif isinstance(state1, Isen):
             mach1 = Q_(state1.mach).m
+        
+        else:
+            
+            try:
+                mach1 = Q_(float(state1)).to('').m
+            
+            except ValueError:
+                raise ValueError(f"invalid input for mach {state1}")
+            
             
         epsilon = 1e-10
         h = 1e-20
@@ -376,7 +384,7 @@ class Oblique(Shock):
         
         beta1 = (mu + h) if strong else (np.pi/2 - h)
         
-        beta_max = Oblique.BetaMax(mach1)
+        beta_max = Oblique.BetaMax(mach = mach1)
         theta_max = thetaMachBeta(mach1, beta_max)
         
         if theta > theta_max:
