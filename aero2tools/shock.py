@@ -75,10 +75,13 @@ class Shock(Isen):
                     return self.r0_r / self.r2_r1
         
         except TypeError:
-            raise TypeError(f"Invalid Type: please assign values to normal shock")
+            raise TypeError(f"Invalid Type: please assign values to shock")
         
-        raise AttributeError(f"Normal has no attirubte \'{name}\'")
-    
+        try:
+            return super().__getattr__(name)
+        
+        except AttributeError:
+            raise AttributeError(f"Shock has no attirubte \'{name}\'")
 
 # ============================================================ 
 # Normal Shock
@@ -233,6 +236,17 @@ class Normal(Shock):
         
         return super().__setattr__(name, value)
         
+    def __getattr__(self, name):
+        
+        try:
+            return super().__getattr__(name)
+        
+        except AttributeError:
+            raise AttributeError(f"Normal has no attirubte \'{name}\'")
+        
+        
+        
+        
 
 # ============================================================ 
 # Oblique Shock
@@ -247,17 +261,140 @@ class Oblique(Shock):
     def __init__(self, M, beta, **kwargs):
         super().__init__(M, **kwargs)
         
-        #self.beta = beta
-        
-    @property
-    def beta_max(self):
-        mach = self.mach.to('').m
+        self._normal = None
+        self.beta = beta
+    
+    
+    def BetaMax(mach = None):
+        if mach is None:
+            mach = mach.to('').m
         beta_max = optimize.optimize(lambda B: thetaMachBeta(mach, B), np.pi / 4)
         return config.Q_(beta_max,'rad')
-        
+    
+    @property
+    def beta_max(self):
+        return self.BetaMax(self.mach)
+    
     @property
     def theta_max(self):
         return thetaMachBeta(self.mach, self.beta_max)
+    
+    @property
+    def beta(self):
+        return config.Q_(getattr(self, "_beta", None)).to('deg')
+    
+    @beta.setter
+    def beta(self, B):
+        
+        angle = config.Q_(B).to('rad').m
+        
+        if (angle > np.pi / 2) or (angle < self.mu.to('rad').m):
+            raise ValueError("Shock is detached")
+        
+        setattr(self, "_beta", B)
+        setattr(self, "_normal", Normal(self.mach1n))
+    
+    @property
+    def theta(self):
+        return thetaMachBeta(self.mach, self.beta).to('deg')
+    
+    
+    @property
+    def T2_T1(self):
+        return self._normal.T2_T1
+
+    @property
+    def P2_P1(self):
+        return self._normal.P2_P1
+
+    @property
+    def r2_r1(self):
+        return self._normal.r2_r1
+
+    @property
+    def P02_P01(self):
+        return self._normal.P02_P01
+    
+    
+    def __getattr__(self, name):
+        
+        try:
+            match name:
+                
+                case "mach1n":
+                    return self.mach * np.sin(self.beta)
+                
+                case "mach1t":
+                    return self.mach * np.cos(self.beta)
+                
+                case "mach2n":
+                    return self._normal.mach2
+                        
+                case "mach2t":
+                    return self.mach1t * np.sqrt(1 / self.T2_T1)
+                
+                case "mach2":
+                    return np.sqrt(self.mach2n**2 + self.mach2t**2)
+                
+                case "state2":
+                    state = Shock(self.mach2)
+                    state.propagate_state2(self)
+                    return state
+                
+                case "type":
+                    return "weak" if self.mach2 < 1 else "strong"
+        
+            return super().__getattr__(name)
+        
+        except TypeError:
+            raise TypeError(f"Invalid Type: please assign values to oblique shock")
+        
+        except AttributeError:
+            raise AttributeError(f"Oblique has no attirubte \'{name}\'")
+        
+    
+    @staticmethod
+    def IsenBeta(state1: Isen, beta, **kwargs):
+        shock1 = Oblique(state1, beta, **kwargs)
+        return shock1
+    
+    @staticmethod
+    def IsenTheta(state1: Isen, theta, strong = True, **kwargs):
+        Q_ = config.Q_
+        
+        if isinstance(state1, Shock):
+            mach1 = Q_(state1.mach2).m
+
+        else:
+            mach1 = Q_(state1.mach).m
+            
+        epsilon = 1e-10
+        h = 1e-20
+        
+        mu = np.asin(1 / mach1)
+        theta_target = Q_(theta).to('rad').m
+        
+        beta1 = (mu + h) if strong else (np.pi/2 - h)
+        
+        beta_max = Oblique.BetaMax(mach1)
+        theta_max = thetaMachBeta(mach1, beta_max)
+        
+        if theta > theta_max:
+            raise ValueError(f"theta exceeds maximum ({theta:.4g} > {theta_max:.4g})")
+        
+        beta_opt = optimize.target(lambda B: thetaMachBeta(mach1, B), beta1, theta_target)
+        theta_opt = thetaMachBeta(mach1, beta_opt)
+        
+        if np.abs(theta_opt - theta_target) > epsilon:
+            raise TimeoutError("Could not converge (raise iter range)")
+        
+        return Oblique(mach1, beta_opt, **kwargs)
+    
+    
+    
+    
+    
+    
     
     
     

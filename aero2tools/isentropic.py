@@ -25,10 +25,7 @@ class Isen:
         setattr(self, "_num", None)
         setattr(self, "_updating", False)
         setattr(self, "_generating", True)
-    
-        self.mu = None
-        self.nu = None
-        
+            
         # star variables            
         self.Tstar_T = None
         self.Pstar_P = None
@@ -84,10 +81,6 @@ class Isen:
         setattr(self, "rstar_r", rstar_r)
         setattr(self, "mach_star", mach_star)
         
-        
-        if self._mach.to('').m >= 1:
-            
-            self.nu = config.Q_(20, 'deg')
         
         num = getattr(self, '_num', None)       
         
@@ -273,19 +266,17 @@ class Isen:
         
     def __getattr__(self, name):
         
+        if name not in ["mach", "_mach"]: M = config.Q_(self.mach).to('').m
+        
         match name:
             
             case "nu": 
-                if self.mach >= 1: 
+                if M >= 1: 
                     return config.Q_(20, 'deg')
             
             case "mu": 
-                if self.mach >= 1:
-                    return np.asin(1 / self._mach)
-        
-        
-        
-        
+                if M >= 1:
+                    return np.asin(1 / self.mach)
         
         raise AttributeError("Isen does not have this attribute")
     
