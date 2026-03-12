@@ -414,7 +414,7 @@ Expansion = IsenTranslate
 class IsenTracker:
     
     _variables_A = ("T", "P", "r") # variables with ratios
-    _variables_B = ("mu", "beta", "theta", "beta_max", "theta_max", "dtheta") # variables without ratios
+    _variables_B = ("mu", "nu", "beta", "theta", "beta_max", "theta_max", "dtheta") # variables without ratios
     
     def __init__(self, state0):
         
@@ -489,6 +489,10 @@ class IsenTracker:
         if m:
             var, i = m.groups()
             i = (int(i)) if (i != '') else 0
+            
+            if (i == len(self.states)):
+                i -= 1
+                var = f"{var}2"
             
             return getattr(self.states[i], var)
         

@@ -1,6 +1,11 @@
 from . import core
 from .core import *
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .shock import Shock
+
+
 import numpy as np
 import re
  
@@ -357,6 +362,9 @@ class IsenTranslate:
     @staticmethod
     def from_temp1(state1: Isen, T2_T1 = None, T1 = None, T2 = None):
         
+        if hasattr(state1, "state2"):
+            state1 = state1.state2
+        
         if T1 is not None: state1.T = T1
         T1 = getattr(state1, "T", T1)
         
@@ -376,6 +384,9 @@ class IsenTranslate:
     
     @staticmethod
     def from_temp2(state2: Isen, T2_T1 = None, T1 = None, T2 = None):
+        
+        if hasattr(state1, "state2"):
+            state1 = state1.state2
         
         if T2 is not None: state2.T = T2
         T2 = getattr(state1, "T", T2)
@@ -397,6 +408,9 @@ class IsenTranslate:
     @staticmethod
     def from_pres1(state1: Isen, P2_P1 = None, P1 = None, P2 = None):
         
+        if hasattr(state1, "state2"):
+            state1 = state1.state2
+        
         if P1 is not None: state1.P = P1
         P1 = getattr(state1, "P", P1)
         
@@ -416,6 +430,9 @@ class IsenTranslate:
     
     @staticmethod
     def from_pres2(state2: Isen, P2_P1 = None, P1 = None, P2 = None):
+        
+        if hasattr(state1, "state2"):
+            state1 = state1.state2
         
         if P2 is not None: state2.P = P2
         P2 = getattr(state2, "P", P2)
@@ -437,6 +454,9 @@ class IsenTranslate:
     @staticmethod
     def from_dens1(state1: Isen, r2_r1 = None, r1 = None, r2 = None):
         
+        if hasattr(state1, "state2"):
+            state1 = state1.state2
+        
         if r1 is not None: state1.r = r1
         r1 = getattr(state1, "r", r1)
         
@@ -456,6 +476,9 @@ class IsenTranslate:
     
     @staticmethod
     def from_dens2(state2: Isen, r2_r1 = None, r1 = None, r2 = None):
+        
+        if hasattr(state1, "state2"):
+            state1 = state1.state2
         
         if r2 is not None: state2.r = r2
         r2 = getattr(state2, "r", r2)
@@ -477,11 +500,14 @@ class IsenTranslate:
     @staticmethod
     def from_dtheta1(state1: Isen | float, dtheta, **kwargs):
         
+        if hasattr(state1, "state2"):
+            state1 = state1.state2
+        
         if isinstance(state1, float):
             state1 = Isen(state1, **kwargs)
 
         nu1 = state1.nu
-        nu2 = dtheta + nu1
+        nu2 = nu1 + dtheta
         
         mach2 = optimize.target(nuMach, 2, nu2)
         state2 = Isen(mach2)
@@ -527,7 +553,7 @@ class IsenTranslate:
                     return getattr(self, f"state{i}").r0_r
                 
         
-        m = re.match(rf"^((P|T|r)(star|0)?|mach|vel)(|1|2)$", name)
+        m = re.match(rf"^((P|T|r)(star|0)?|mach|vel|mu|nu)(|1|2)$", name)
         
         if m:
             var, i, j, k = m.groups()
