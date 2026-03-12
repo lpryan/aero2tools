@@ -414,7 +414,7 @@ Expansion = IsenTranslate
 class IsenTracker:
     
     _variables_A = ("T", "P", "r") # variables with ratios
-    _variables_B = ("mu", "nu", "beta", "theta", "beta_max", "theta_max", "dtheta") # variables without ratios
+    _variables_B = ("mu", "nu", "beta", "theta", "beta_max", "theta_max", "fwd", "rwd") # variables without ratios
     
     def __init__(self, state0):
         
@@ -449,7 +449,7 @@ class IsenTracker:
             r2 = kwargs.get('r2')
         
             if theta is not None:
-                stateNew = Expansion.from_dtheta1(statePrev, theta)
+                stateNew = Expansion.from_theta1(statePrev, theta)
             
             elif T2 is not None:
                 stateNew = Expansion.from_temp1(statePrev, T2 = T2)

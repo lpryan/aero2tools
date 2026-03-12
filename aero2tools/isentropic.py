@@ -498,7 +498,7 @@ class IsenTranslate:
         return inter
     
     @staticmethod
-    def from_dtheta1(state1: Isen | float, dtheta, **kwargs):
+    def from_theta1(state1: Isen | float, theta, **kwargs):
         
         if hasattr(state1, "state2"):
             state1 = state1.state2
@@ -507,7 +507,7 @@ class IsenTranslate:
             state1 = Isen(state1, **kwargs)
 
         nu1 = state1.nu
-        nu2 = nu1 + dtheta
+        nu2 = nu1 + theta
         
         mach2 = optimize.target(nuMach, 2, nu2)
         state2 = Isen(mach2)
@@ -560,10 +560,20 @@ class IsenTranslate:
             if k == '': k = 1
             return getattr(getattr(self, f"state{k}"), f"{var}", None)
         
-        if name == "entropy":
-            return config.CP * np.log(self.T2_T1) - config.R * np.log(self.P2_P1)
         
-        if name == "dtheta":
-            return self.state2.nu - self.state1.nu
+        match name:
+            
+            case "entropy":
+                return config.CP * np.log(self.T2_T1) - config.R * np.log(self.P2_P1)
+        
+            case "theta":
+                return self.state2.nu - self.state1.nu
+        
+            case "fwd":
+                return self.state1.mu
+            
+            case "rwd":
+                return self.state2.mu - self.theta
+        
         
         raise AttributeError(f"{name} not found")
