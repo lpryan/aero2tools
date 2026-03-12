@@ -399,16 +399,22 @@ class Oblique(Shock):
         
         shock1 = Oblique(state1, beta_opt)
         return shock1
-    
+
+          
+
+
+
     
 # ============================================================ 
 # Isen Tracker
 # ============================================================  
-    
+
+Expansion = IsenTranslate
+
 class IsenTracker:
     
     _variables_A = ("T", "P", "r") # variables with ratios
-    _variables_B = ("mu", "beta", "theta", "beta_max", "theta_max") # variables without ratios
+    _variables_B = ("mu", "beta", "theta", "beta_max", "theta_max", "dtheta") # variables without ratios
     
     def __init__(self, state0):
         
@@ -435,7 +441,28 @@ class IsenTracker:
             
             else:
                 raise ValueError("Not enough valid inputs (addShock: Oblique)")
+        
+        elif func is Expansion:
             
+            T2 = kwargs.get('T2')
+            P2 = kwargs.get('P2')
+            r2 = kwargs.get('r2')
+        
+            if theta is not None:
+                stateNew = Expansion.from_dtheta1(statePrev, theta)
+            
+            elif T2 is not None:
+                stateNew = Expansion.from_temp1(statePrev, T2 = T2)
+            
+            elif P2 is not None:
+                stateNew = Expansion.from_pres1(statePrev, P2 = P2)
+            
+            elif r2 is not None:
+                stateNew = Expansion.from_dens1(statePrev, r2 = r2)
+                
+            else:
+                raise ValueError("Not enough valid inputs (addShock: Expansion)")
+        
         else:
             raise ValueError("Not enough valid inputs (addShock)")
         

@@ -8,6 +8,13 @@ import re
 # Isentropic Flow 
 # ====================
 
+def nuMach(mach):
+    sqrtM = np.sqrt(mach**2 - 1)
+    nu = np.sqrt(6)*np.atan(sqrtM / np.sqrt(6)) - np.atan(sqrtM)
+    return nu
+
+
+
 class Isen:
     
     _variables = (
@@ -272,9 +279,7 @@ class Isen:
             
             case "nu": 
                 if M >= 1:
-                    
-                    sqrtM = np.sqrt(self.mach**2 - 1)
-                    nu = np.sqrt(6)*np.atan(sqrtM / np.sqrt(6)) - np.atan(sqrtM)
+                    nu = nuMach(self.mach)
                     return nu.to('deg')
             
             case "mu": 
@@ -296,6 +301,11 @@ class Isen:
         
         if other.P is not None:
             self.P = other.P * np.pow(getattr(parent, "P2_P1"), 2*num - 3)
+        
+        if self.T and self.P is not None:
+            self.r = IdealGas.dens(self.P, self.T)
+        
+        
     
     
     def propagate_state(self, state):
@@ -341,12 +351,6 @@ class IsenTranslate:
         
         self.state1.reset()
         self.state2.reset()
-        
-        
-        
-        
-        
-        
     
     # ================
     #   Constructors
@@ -470,6 +474,22 @@ class IsenTranslate:
         
         return inter
     
+    @staticmethod
+    def from_dtheta1(state1: Isen | float, dtheta, **kwargs):
+        
+        if isinstance(state1, float):
+            state1 = Isen(state1, **kwargs)
+
+        nu1 = state1.nu
+        nu2 = dtheta + nu1
+        
+        mach2 = optimize.target(nuMach, 2, nu2)
+        state2 = Isen(mach2)
+        
+        exp = IsenTranslate(state1, state2)
+        
+        return exp
+    
     
     # ====================
     # attribute accessor
@@ -491,7 +511,6 @@ class IsenTranslate:
         return self.P2_P1 * np.pow(1 / self.T2_T1, 7/2)
     
     
-    
     def __getattr__(self, name):
         
         m = re.match(rf"^(P|T|r)0_\1(1|2)$", name)
@@ -508,20 +527,17 @@ class IsenTranslate:
                     return getattr(self, f"state{i}").r0_r
                 
         
-        m = re.match(rf"^((P|T|r)(star|0)?|mach|vel)(1|2)$", name)
+        m = re.match(rf"^((P|T|r)(star|0)?|mach|vel)(|1|2)$", name)
         
         if m:
             var, i, j, k = m.groups()
+            if k == '': k = 1
             return getattr(getattr(self, f"state{k}"), f"{var}", None)
         
         if name == "entropy":
             return config.CP * np.log(self.T2_T1) - config.R * np.log(self.P2_P1)
         
+        if name == "dtheta":
+            return self.state2.nu - self.state1.nu
+        
         raise AttributeError(f"{name} not found")
-        
-        
-        
-        
-    
-    
-    

@@ -1,9 +1,9 @@
 from .core import config, optimize, SpeedOfSound, IdealGas
 from .isentropic import Isen, IsenTranslate
-from .shock import Shock, Normal, Oblique, IsenTracker
+from .shock import Shock, Normal, Oblique, IsenTracker, Expansion
 
 __all__ = [
     "config", "optimize", "SpeedOfSound", "IdealGas",
     "Isen", "IsenTranslate",
-    "Shock", "Normal", "Oblique", "IsenTracker"
+    "Shock", "Normal", "Oblique", "IsenTracker", "Expansion"
 ]
