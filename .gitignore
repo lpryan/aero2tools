@@ -6,3 +6,6 @@ venv/
 __pycache__/
 
 examples/schoolwork/
+
+*.egg-info
+dist/
