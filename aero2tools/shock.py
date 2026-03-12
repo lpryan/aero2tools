@@ -12,7 +12,6 @@ import re
 class Shock(Isen):
     
     def __init__(self, M, **kwargs):
-        if (M < 1): raise ValueError(f"shock cannot occure with subsonic mach (M = {M})")
         
         if isinstance(M, Normal) or isinstance(M, Oblique):
             M = M.state2
@@ -21,10 +20,13 @@ class Shock(Isen):
             state = M
             mach = config.Q_(state.mach).m
             
+            if (mach < 1): raise ValueError(f"shock cannot occure with subsonic mach (M = {M})")
+            
             super().__init__(mach, **kwargs)
             self.propagate_state(state)
             
         else:
+            if (M < 1): raise ValueError(f"shock cannot occure with subsonic mach (M = {M})")
             super().__init__(M, **kwargs)
     
     def propagate_state(self, state: Isen):
@@ -244,9 +246,6 @@ class Normal(Shock):
         except AttributeError:
             raise AttributeError(f"Normal has no attirubte \'{name}\'")
         
-        
-        
-        
 
 # ============================================================ 
 # Oblique Shock
@@ -375,6 +374,8 @@ class Oblique(Shock):
             except ValueError:
                 raise ValueError(f"invalid input for mach {state1}")
             
+            state1 = Isen(mach1, **kwargs)
+            
             
         epsilon = 1e-10
         h = 1e-20
@@ -388,7 +389,7 @@ class Oblique(Shock):
         theta_max = thetaMachBeta(mach1, beta_max)
         
         if theta > theta_max:
-            raise ValueError(f"theta exceeds maximum ({theta:.4g} > {theta_max:.4g})")
+            raise ValueError(f"theta exceeds maximum ({theta:~.4g} > {theta_max:~.4g})")
         
         beta_opt = optimize.target(lambda B: thetaMachBeta(mach1, B), beta1, theta_target)
         theta_opt = thetaMachBeta(mach1, beta_opt)
@@ -396,11 +397,87 @@ class Oblique(Shock):
         if np.abs(theta_opt - theta_target) > epsilon:
             raise TimeoutError("Could not converge (raise iter range)")
         
-        return Oblique(mach1, beta_opt, **kwargs)
+        shock1 = Oblique(state1, beta_opt)
+        return shock1
     
     
+# ============================================================ 
+# Isen Tracker
+# ============================================================  
     
+class IsenTracker:
     
+    _variables_A = ("T", "P", "r") # variables with ratios
+    _variables_B = ("mu", "beta", "theta", "beta_max", "theta_max") # variables without ratios
+    
+    def __init__(self, state0):
+        
+        self.state0 = state0
+        self.states = [state0]
+    
+    def addShock(self, func, theta = None, beta = None, **kwargs):
+        
+        statePrev = self.states[-1]
+        
+        if func is Normal:
+            stateNew = Normal(statePrev, **kwargs)
+            
+        elif func is Oblique:
+            
+            if (beta is not None) and (theta is not None):
+                raise ValueError("Too many inputs (addShock: Oblique)")                
+                
+            elif beta is not None:
+                stateNew = Oblique.IsenBeta(statePrev, beta, **kwargs)
+            
+            elif theta is not None:
+                stateNew = Oblique.IsenTheta(statePrev, theta, True, **kwargs)
+            
+            else:
+                raise ValueError("Not enough valid inputs (addShock: Oblique)")
+            
+        else:
+            raise ValueError("Not enough valid inputs (addShock)")
+        
+        self.states.append(stateNew)
+            
+    
+    def __getattr__(self, name):
+        
+        m = re.match(rf"^(mach|{'|'.join([f'{i}0' for i in self._variables_A])}|{'|'.join(self._variables_A)})([0-9]*)$", name)
+        
+        if m:
+            var, i = m.groups()
+            i = (int(i)) if (i != '') else 0
+            
+            if (i == len(self.states)):
+                i -= 1
+                var = f"{var}2"
+            
+            return getattr(self.states[i], var)
+        
+        
+        m = re.match(rf"^({'|'.join(self._variables_B)})([0-9]*)$", name)
+        
+        if m:
+            var, i = m.groups()
+            i = (int(i)) if (i != '') else 0
+            
+            return getattr(self.states[i], var)
+        
+        m = re.match(rf"^(P0|{'|'.join(self._variables_A)})(\d+)_\1(\d+)$", name)
+        
+        if m:
+            var, i, j = m.groups()
+            
+            if i == '0':
+                return getattr(self.states[int(j)], f"{var}0_{var}")
+            
+            return getattr(self.states[int(j)], f"{var}2_{var}1")
+                
+        raise AttributeError(f"unable to access attribute ({name})")
+        
+        
     
     
     

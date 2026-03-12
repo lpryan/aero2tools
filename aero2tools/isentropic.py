@@ -271,8 +271,11 @@ class Isen:
         match name:
             
             case "nu": 
-                if M >= 1: 
-                    return config.Q_(20, 'deg')
+                if M >= 1:
+                    
+                    sqrtM = np.sqrt(self.mach**2 - 1)
+                    nu = np.sqrt(6)*np.atan(sqrtM / np.sqrt(6)) - np.atan(sqrtM)
+                    return nu.to('deg')
             
             case "mu": 
                 if M >= 1:
