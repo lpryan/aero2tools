@@ -4,7 +4,7 @@ def test_expansion1(subtests):
     Q_ = config.Q_
     
     state0 = Isen(2)
-    exp1 = Expansion.from_dtheta1(state0, Q_(12, 'deg'))
+    exp1 = Expansion.from_theta1(state0, Q_(12, 'deg'))
     
     assert_subtest(subtests, 'a', exp1.mach2.to('').m, 2.468)
     
@@ -16,7 +16,7 @@ def test_expansion2(subtests):
     Q_ = config.Q_
     
     state0 = Isen(1.1, T = Q_(273, 'K'), P = Q_(1.2, 'atm'))
-    exp1 = Expansion.from_dtheta1(state0, Q_(40, 'deg'))
+    exp1 = Expansion.from_theta1(state0, Q_(40, 'deg'))
     
     assert_subtest(subtests, 'a', exp1.mach2.to('').m, 2.6)
     assert_subtest(subtests, 'b', exp1.P2.to('atm').m, 0.129)
@@ -49,4 +49,44 @@ def test_expansion_tracker2(subtests):
     assert_subtest(subtests, 'a', shocks.mach2.to('').m, 2.6)
     assert_subtest(subtests, 'b', shocks.T2.to('K').m, 144.383)
     
-    assert_subtest(subtests, 'c', shocks.dtheta1.to('deg').m, 40)
+    assert_subtest(subtests, 'c', shocks.theta1.to('deg').m, 40)
+    
+    
+def test_expansion_bug():
+    Q_ = config.Q_
+    
+    state0 = Isen(2, T = Q_(590, 'rankine'), P = Q_(0.6, 'atm'))
+    shocks = IsenTracker(state0)
+
+    shocks.addShock(Expansion, theta = Q_(23.38, 'deg'))
+
+    assert_valid(len(shocks.states), 2)    
+
+# test fix on expansion being assined to state 1
+def test_expansion_self():
+    Q_ = config.Q_
+    
+    state0 = Isen(3, T = Q_(260, 'K'), P = Q_(1, 'atm'))
+    shocks = IsenTracker(state0)
+    
+    shocks.addShock(Expansion, theta = Q_(30.6, 'deg'))
+    shocks.addShock(Expansion, theta = Q_(30.6, 'deg'))
+
+
+def test_textbook_example_910(subtests):
+    Q_ = config.Q_
+    
+    state0 = Isen(10, P = Q_(1, 'atm'))
+    shocks = IsenTracker(state0)
+    
+    shocks.addShock(Expansion, theta = Q_(-15, 'deg'))
+    
+    assert_subtest(subtests, 'a', shocks.nu.to('deg').m, 102.3)
+    assert_subtest(subtests, 'b', shocks.nu2.to('deg').m, 87.3)
+    assert_subtest(subtests, 'c', shocks.mach2.to('').m, 6.4)
+    assert_subtest(subtests, 'd', shocks.mach.to('').m, 10)
+
+
+
+
+
