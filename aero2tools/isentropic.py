@@ -13,9 +13,10 @@ import re
 # Isentropic Flow 
 # ====================
 
-def nuMach(mach):
+def nuMach(mach, GAMMA = config.GAMMA):
     sqrtM = np.sqrt(mach**2 - 1)
-    nu = np.sqrt(6)*np.atan(sqrtM / np.sqrt(6)) - np.atan(sqrtM)
+    sqrtGamma = np.sqrt((GAMMA + 1) / (GAMMA - 1))
+    nu = sqrtGamma * np.atan(sqrtM / sqrtGamma) - np.atan(sqrtM)
     return nu
 
 
