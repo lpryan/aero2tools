@@ -50,6 +50,19 @@ def test_problem4(subtests):
     assert_subtest(subtests, 'a', shocks.mach3.to('').m, 2.475)
     assert_subtest(subtests, 'b', shocks.P3.to('atm').m, 1.206)
     assert_subtest(subtests, 'c', shocks.T3.to('K').m, 327.162)
+
+
+def test_problem4b(subtests):
+    Q_ = config.Q_
     
+    state0 = Isen(3, T = Q_(260, 'K'), P = Q_(1, 'atm'))
+    shocks = IsenTracker(state0)
+    
+    shocks.addDeflection(Q_(30.6, 'deg'))
+    shocks.addDeflection(Q_(-30.6, 'deg'))
+    
+    assert_subtest(subtests, 'a', shocks.mach3.to('').m, 2.475)
+    assert_subtest(subtests, 'b', shocks.P3.to('atm').m, 1.206)
+    assert_subtest(subtests, 'c', shocks.T3.to('K').m, 327.162)
     
     

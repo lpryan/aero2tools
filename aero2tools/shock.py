@@ -420,6 +420,20 @@ class IsenTracker:
         
         self.state0 = state0
         self.states = [state0]
+        
+        
+    def addDeflection(self, theta, **kwargs):
+        
+        if config.Q_(theta).m > 0:
+            self.addShock(Oblique, theta = theta, **kwargs)
+        
+        elif config.Q_(theta).m < 0:
+            self.addShock(Expansion, theta = np.abs(theta), **kwargs)
+            
+        else:
+            raise ValueError("Invalid deflection angle (IsenTracker.addDeflection)")
+        
+        
     
     def addShock(self, func, theta = None, beta = None, **kwargs):
         
