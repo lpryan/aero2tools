@@ -12,22 +12,27 @@ import re
 class Shock(Isen):
     
     def __init__(self, M, **kwargs):
-        
-        if isinstance(M, Normal) or isinstance(M, Oblique):
-            M = M.state2
-            
-        if isinstance(M, Isen):
-            state = M
-            mach = config.Q_(state.mach).m
-            
-            if (mach < 1): raise ValueError(f"shock cannot occure with subsonic mach (M = {M})")
-            
-            super().__init__(mach, **kwargs)
-            self.propagate_state(state)
-            
-        else:
-            if (M < 1): raise ValueError(f"shock cannot occure with subsonic mach (M = {M})")
-            super().__init__(M, **kwargs)
+        try:
+            if isinstance(M, Normal) or isinstance(M, Oblique) or isinstance(M, IsenTranslate):
+                M = M.state2
+                        
+            if isinstance(M, Isen):
+                state = M
+                mach = config.Q_(state.mach).m
+                
+                if (mach < 1): raise ValueError(f"shock cannot occure with subsonic mach (M = {M})")
+                
+                super().__init__(mach, **kwargs)
+                self.propagate_state(state)
+                
+            else:
+                if (M < 1): raise ValueError(f"shock cannot occure with subsonic mach (M = {M})")
+                super().__init__(M, **kwargs)
+    
+        except TypeError:
+            raise TypeError(f"Inputted type is {type(M)}")
+    
+    
     
     def propagate_state(self, state: Isen):
         return super().propagate_state(state)
@@ -360,7 +365,7 @@ class Oblique(Shock):
     def IsenTheta(state1: Isen | float, theta, strong = True, **kwargs):
         Q_ = config.Q_
         
-        if isinstance(state1, Shock):
+        if isinstance(state1, Shock) or isinstance(state1, IsenTranslate):
             mach1 = Q_(state1.mach2).m
 
         elif isinstance(state1, Isen):
@@ -416,13 +421,13 @@ class IsenTracker:
     _variables_A = ("T", "P", "r") # variables with ratios
     _variables_B = ("mu", "nu", "beta", "theta", "beta_max", "theta_max", "fwd", "rwd") # variables without ratios
     
-    def __init__(self, state0):
+    def __init__(self, state0: Isen):
         
         self.state0 = state0
         self.states = [state0]
         
-        
     def addDeflection(self, theta, **kwargs):
+        """ θ > 0: Oblique || θ < 0: Expansion || θ = 0: Normal """
         
         if config.Q_(theta).m > 0:
             self.addShock(Oblique, theta = theta, **kwargs)
@@ -430,10 +435,11 @@ class IsenTracker:
         elif config.Q_(theta).m < 0:
             self.addShock(Expansion, theta = np.abs(theta), **kwargs)
             
+        elif config.Q_(theta).m == 0:
+            self.addShock(Normal, **kwargs)            
+            
         else:
-            raise ValueError("Invalid deflection angle (IsenTracker.addDeflection)")
-        
-        
+            raise ValueError("Invalid deflection angle (IsenTracker.addDeflection)")   
     
     def addShock(self, func, theta = None, beta = None, **kwargs):
         
@@ -481,7 +487,6 @@ class IsenTracker:
             raise ValueError("Not enough valid inputs (addShock)")
         
         self.states.append(stateNew)
-            
     
     def __getattr__(self, name):
         
@@ -521,23 +526,38 @@ class IsenTracker:
             return getattr(self.states[int(j)], f"{var}2_{var}1")
                 
         raise AttributeError(f"unable to access attribute ({name})")
+    
+    
+    def calibrate(self, shocks, inputvar, **outvar):
+        """ uses deflection """
         
+        out_info = {
+            'var': list(outvar.keys())[0], 
+            'value': list(outvar.values())[0].m, 
+            'units': list(outvar.values())[0].units
+        }
         
-    
-    
-    
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
+        def optfunc(x):
+            
+            state0_opt = self.state0
+            state0_opt.__setattr__(inputvar, config.Q_(x, out_info['units']))
+            
+            shocks_opt = IsenTracker(state0_opt)            
+            
+            for s in shocks:
+                shocks_opt.addDeflection(s)            
+                
+            return shocks_opt.__getattr__(out_info['var']).to(out_info['units']).m
+        
+        Xopt = optimize.target(optfunc, 1, out_info['value'])
+        
+        _state0 = self.state0
+        _state0.__setattr__(inputvar, config.Q_(Xopt, out_info['units']))
+        
+        _shocks = IsenTracker(_state0)            
+            
+        for s in shocks:
+            _shocks.addDeflection(s)
+        
+        self.state0 = _shocks.state0
+        self.states = _shocks.states

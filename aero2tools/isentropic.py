@@ -184,6 +184,16 @@ class Isen:
         
         return Isen(mach, T = temp, GAMMA = GAMMA)
 
+    @staticmethod
+    def from_nu(nu2, GAMMA: Config | float = config, **kwargs):
+        if GAMMA is config: GAMMA = config.GAMMA
+        
+        mach = optimize.target(lambda M: nuMach(M, GAMMA), 2, nu2)
+        
+        return Isen(mach, **kwargs)
+        
+
+
     
     # ====================
     # attribute modifier/accessor
