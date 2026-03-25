@@ -301,6 +301,9 @@ class Oblique(Shock):
     def theta(self):
         return thetaMachBeta(self.mach, self.beta).to('deg')
     
+    @property
+    def phi(self):
+        return self.beta - self.theta
     
     @property
     def T2_T1(self):
@@ -419,7 +422,7 @@ Expansion = IsenTranslate
 class IsenTracker:
     
     _variables_A = ("T", "P", "r") # variables with ratios
-    _variables_B = ("mu", "nu", "beta", "theta", "beta_max", "theta_max", "fwd", "rwd") # variables without ratios
+    _variables_B = ("mu", "nu", "phi", "beta", "theta", "beta_max", "theta_max", "fwd", "rwd") # variables without ratios
     
     def __init__(self, state0: Isen):
         
@@ -529,7 +532,8 @@ class IsenTracker:
     
     
     def calibrate(self, shocks, inputvar, **outvar):
-        """ uses deflection """
+        """ uses deflection:
+        θ > 0: Oblique || θ < 0: Expansion || θ = 0: Normal """
         
         out_info = {
             'var': list(outvar.keys())[0], 
