@@ -550,10 +550,11 @@ class IsenTranslate:
     
     def __getattr__(self, name):
         
-        m = re.match(rf"^(P|T|r)0_\1(1|2)$", name)
+        m = re.match(rf"^(P|T|r)0_\1(|1|2)$", name)
         
         if m:
             var, i = m.groups()
+            if i == '': i = 1
             
             match var:
                 case "P": 

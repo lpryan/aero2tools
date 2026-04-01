@@ -383,6 +383,9 @@ class Oblique(Shock):
                 raise ValueError(f"invalid input for mach {state1}")
             
             state1 = Isen(mach1, **kwargs)
+        
+        if (mach1 < 1):
+            raise ValueError(f"mach is subsonic ({mach1} < 1)")
             
             
         epsilon = 1e-10
@@ -396,8 +399,8 @@ class Oblique(Shock):
         beta_max = Oblique.BetaMax(mach = mach1)
         theta_max = thetaMachBeta(mach1, beta_max)
         
-        if theta > theta_max:
-            raise ValueError(f"theta exceeds maximum ({theta:~.4g} > {theta_max:~.4g})")
+        if theta_target > theta_max: 
+            raise ValueError(f"theta exceeds maximum ({theta:~.4g} > {theta_max:~.4g})\n[M1: {mach1}, βmax: {beta_max}]")
         
         beta_opt = optimize.target(lambda B: thetaMachBeta(mach1, B), beta1, theta_target)
         theta_opt = thetaMachBeta(mach1, beta_opt)
@@ -522,11 +525,31 @@ class IsenTracker:
         
         if m:
             var, i, j = m.groups()
+
+            i = (int(i)) if (i != '') else 0
+            j = (int(j)) if (j != '') else 0
             
-            if i == '0':
+            if i == 0:
                 return getattr(self.states[int(j)], f"{var}0_{var}")
             
-            return getattr(self.states[int(j)], f"{var}2_{var}1")
+            elif (i - 1 == j):
+                return getattr(self.states[int(j)], f"{var}2_{var}1")
+            
+            else:
+                
+                if (j > i):
+                    return 1 / self.__getattr__(f"{var}{j}_{var}{i}")
+                
+                prod = 1
+                
+                for n in range(j, i):
+                    prod *= self.__getattr__(f"{var}{n + 1}_{var}{n}")
+                
+                return prod
+                
+                
+                
+                          
                 
         raise AttributeError(f"unable to access attribute ({name})")
     
