@@ -4,13 +4,15 @@ from .optimize import *
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .Relations.interIsen import Relation
+    from .Relations.relation import Relation
     from .Relations.interIsen import InterIsen
+    from .Relations.normal import Normal
 
 import numpy as np
 import re
 
-
+global num
+num = 0
 
 
 # ===========================
@@ -57,15 +59,11 @@ class Isen:
         self.mach = config.Q_(M)
         
         # variables
-        self.T  = kwargs.get("T", None)
-        self.T0 = kwargs.get("T0", None) if (self.T is None) else None
-        
+        self.T  = kwargs.get("T", None)        
         self.P  = kwargs.get("P",  None)
-        self.P0 = kwargs.get("P0", None) if (self.P is None) else None
         
         if (self.T is None) or (self.P is None):
             self.r  = kwargs.get("r",  None)
-            self.r0 = kwargs.get("r0", None) if (self.r is None) else None
         else:
             self.r = IdealGas.dens(self.P, self.T)
             
@@ -269,50 +267,164 @@ class Isen:
     # Attribute Propagator
     # ----------------------------------
     
-    @staticmethod
     def prop_up(rel: Relation):
-        if getattr(rel.state2, "_updating", False): return        
         
         if rel.state1.T is not None:
-            rel.state2.T = rel.state1.T * rel.T2_T1 
-        
+            rel.state2.T = rel.state1.T * rel.T2_T1
+            # config.safe_set(rel.state2, "T", rel.state1.T * rel.T2_T1)
+       
         if rel.state1.P is not None:
             rel.state2.P = rel.state1.P * rel.P2_P1
-            
+            # config.safe_set(rel.state2, "P", rel.state1.P * rel.P2_P1)
+           
         if rel.state1.A is not None:
-            rel.state2.A = rel.state1.A * rel.A2_A1 
-    
-    @staticmethod
+            rel.state2.A = rel.state1.A * rel.A2_A1
+            # config.safe_set(rel.state2, "A", rel.state1.A * rel.A2_A1)
+            
+        from .Relations.normal import Normal
+        if isinstance(rel, Normal):
+           
+            if rel.state1.mach is not None:
+                
+                M2_num = np.pow(rel.state1.mach, 2) * (rel.GAMMA - 1) + 2
+                M2_den = 2*rel.GAMMA*np.pow(rel.state1.mach, 2) - (rel.GAMMA - 1)
+               
+                mach2 = np.sqrt(M2_num / M2_den)
+               
+                print(mach2)
+               
+                config.safe_set(rel.state2, "mach", mach2)
+      
     def prop_down(rel: Relation):
-        if getattr(rel.state1, "_updating", False): return
         
         if rel.state2.T is not None:
             rel.state1.T = rel.state2.T / rel.T2_T1
-        
+            # config.safe_set(rel.state1, "T", rel.state2.T / rel.T2_T1)
+       
         if rel.state2.P is not None:
             rel.state1.P = rel.state2.P / rel.P2_P1
-            
+            # config.safe_set(rel.state1, "P", rel.state2.P / rel.P2_P1)
+           
         if rel.state2.A is not None:
             rel.state1.A = rel.state2.A / rel.A2_A1
+            # config.safe_set(rel.state1, "A", rel.state2.A / rel.A2_A1)
             
+        from .Relations.normal import Normal
+        if isinstance(rel, Normal):
+           
+            if rel.state2.mach is not None:
+                num = np.sqrt((rel.GAMMA - 1)*np.pow(rel.state2.mach, 2) + 2)
+                den = np.sqrt(rel.GAMMA * (2 * np.pow(rel.state2.mach, 2) - 1) + 1)
     
+                M1 = num / den                
+                config.safe_set(rel.state1, "mach", M1)
+
     
     def attr_pulse(self):
-        visited = set()
-        self._propagate(visited)
-        return visited
+        self._propagate()
     
-    def _propagate(self, visited):
-        if self.UUID in visited: return
-        visited.add(self.UUID)
+    def _propagate(self, source = None):
+            
+        if self._updating: return
+        self._updating = True
         
-        for parent, rel in self._parent: # propagate upstream
-            Isen.prop_up(rel)
-            parent._propagate(visited)
-        
-        for child, rel in self._children: # propagate downstream
-            Isen.prop_down(rel)
-            child._propagate(visited)
+        try:
+            
+            for child, rel in getattr(self, '_children', []):
+                if child is not source:
+                    Isen.prop_up(rel)
+                    child._propagate(source = self)
+            
+            for parent, rel in getattr(self, '_parent', []):
+                if parent is not source:
+                    Isen.prop_down(rel)
+                    parent._propagate(source = self)
+            
+        finally:
+            self._updating = False
+    
+    # OLD METHOD
+    # @staticmethod # 1 -> 2
+    # def prop_up(rel: Relation, visited):
+    #    
+    #     if rel.state1.T is not None:
+    #         config.safe_set(rel.state2, "T", rel.state1.T * rel.T2_T1)
+    #    
+    #     if rel.state1.P is not None:
+    #         config.safe_set(rel.state2, "P", rel.state1.P * rel.P2_P1)
+    #        
+    #     if rel.state1.A is not None:
+    #         config.safe_set(rel.state2, "A", rel.state1.A * rel.A2_A1)
+    #        
+    #     from .Relations.normal import Normal
+    #     if isinstance(rel, Normal):
+    #        
+    #         if rel.state1.mach is not None:
+    #            
+    #             M2_num = np.pow(rel.state1.mach, 2) * (rel.GAMMA - 1) + 2
+    #             M2_den = 2*rel.GAMMA*np.pow(rel.state1.mach, 2) - (rel.GAMMA - 1)
+    #            
+    #             mach2 = np.sqrt(M2_num / M2_den)
+    #            
+    #             config.safe_set(rel.state2, "mach", mach2)
+    #        
+    #        
+    #        
+    #
+    # @staticmethod # 2 -> 1
+    # def prop_down(rel: Relation, visited):
+    #    
+    #     if rel.state2.T is not None:
+    #         config.safe_set(rel.state1, "T", rel.state2.T / rel.T2_T1)
+    #    
+    #     if rel.state2.P is not None:
+    #         config.safe_set(rel.state1, "P", rel.state2.P / rel.P2_P1)
+    #        
+    #     if rel.state2.A is not None:
+    #         config.safe_set(rel.state1, "A", rel.state2.A / rel.A2_A1)
+    #            
+    #     from .Relations.normal import Normal
+    #     if isinstance(rel, Normal):
+    #        
+    #         if rel.state2.mach is not None:
+    #             num = np.sqrt((rel.GAMMA - 1)*np.pow(rel.state2.mach, 2) + 2)
+    #             den = np.sqrt(rel.GAMMA * (2 * np.pow(rel.state2.mach, 2) - 1) + 1)
+    #
+    #             M1 = num / den                
+    #             config.safe_set(rel.state1, "mach", M1)
+    #
+    #
+    # def attr_pulse(self):
+    #     visited = set()
+    #     active = set()
+    #     self._propagate(visited, active)
+    #     return visited
+    #
+    # def _propagate(self, visited, active):
+    #   
+    #     if self.UUID in visited:
+    #         return
+    #   
+    #     if self.UUID in active:
+    #         return
+    #   
+    #     active.add(self.UUID)        
+    #   
+    #     for parent, rel in self._parent: # propagate upstream
+    #         Isen.prop_up(rel, visited)
+    #         parent._propagate(visited, active)
+    #   
+    #     for child, rel in self._children: # propagate downstream
+    #         Isen.prop_down(rel, visited)
+    #         child._propagate(visited, active)
+    #
+    #     active.remove(self.UUID)
+    #     visited.add(self.UUID)
+    # 
+    # 
+    # 
+    # """
+    
     
     # ----------------------------------
     # Attribute Accessor / Modifier
@@ -349,29 +461,27 @@ class Isen:
             super().__setattr__(name, value)
             
             if value is None: return
-        
-            setattr(self, "_updating", True)       
             
             try:
             
                 match var:    
-                    case "T":
-                        super().__setattr__("T0", value * self.T0_T)
-                        super().__setattr__("Tstar", value * self.Tstar_T)
+                    # case "T":
+                    #     super().__setattr__("T0", value * self.T0_T)
+                    #     super().__setattr__("Tstar", value * self.Tstar_T)
                     
                     case "T0":
                         self.T = value / self.T0_T
                         
-                    case "P":
-                        super().__setattr__("P0", value * self.P0_P)
-                        super().__setattr__("Pstar", value * self.Pstar_P)
+                    # case "P":
+                    #     super().__setattr__("P0", value * self.P0_P)
+                    #     super().__setattr__("Pstar", value * self.Pstar_P)
                                                 
                     case "P0":
                         self.P = value / self.P0_P
 
-                    case "r":
-                        super().__setattr__("r0", value * self.r0_r)
-                        super().__setattr__("rstar", value * self.rstar_r)
+                    # case "r":
+                    #     super().__setattr__("r0", value * self.r0_r)
+                    #     super().__setattr__("rstar", value * self.rstar_r)
                     
                     case "r0":
                         self.r = value / self.r0_r
@@ -381,12 +491,11 @@ class Isen:
                     
                     case "A0":
                         self.A = value * self.A_A0
-                        
-                self.attr_pulse()
-                        
+                   
             finally:
-                setattr(self, "_updating", False)
-            
+                pass
+        
+        
         # if T is defined, calculate velocity
         if getattr(self, "T", None) is not None:
             super().__setattr__("vel", SpeedOfSound.vel(self.T, self.mach))
@@ -413,8 +522,8 @@ class Isen:
                     self.T = IdealGas.temp(self.P, self.r)
                 else:
                     self.r = IdealGas.dens(self.P, self.T)
-            
-            return
+        
+        self.attr_pulse()
         
         # If name is already defined
         if name in dir(self):
@@ -447,6 +556,21 @@ class Isen:
         if m:
             var, i = m.groups()
             return 1 / getattr(self, f"{var}0_{var}")
+        
+        m = re.match(r"^(T|P|r)(0|star)$", name)
+        
+        if m:
+            var, i = m.groups()
+            
+            if getattr(self, f'{var}', None) is None:
+                return None
+            
+            if i == '0':
+                return getattr(self, f"{var}") * getattr(self, f"{var}0_{var}")
+
+            else:
+                return getattr(self, f"{var}") * getattr(self, f"{var}star_{var}")
+        
         
         raise AttributeError(f"Isen does not have this attribute [{name}]")
     
