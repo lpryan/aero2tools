@@ -3,6 +3,7 @@ import functools
 import inspect
 import uuid
 
+from collections import deque
 from pint import UnitRegistry
 import pint
 
@@ -20,6 +21,7 @@ class Config:
         
         self.R = self.Q_(287, "J/(kg*K)")
         self.GAMMA = 1.4
+        self.EPS = 1e-10
         
     @property
     def CP(self):
@@ -29,6 +31,18 @@ class Config:
     def CV(self):
         return self.R / (self.GAMMA - 1)
     
+    def safe_set(self, obj, attr, value):
+        current = getattr(obj, attr)
+        
+        if current is None:
+            setattr(obj, attr, value)
+            return True
+        
+        if self.Q_(abs(current - value)).to_base_units().m > self.EPS:
+            setattr(obj, attr, value)
+            return True
+        
+        return False
     
     def wrap(self, out_unit, in_units, strict = True):
         pint_decorator = self.ur.wraps(out_unit, in_units, strict)
@@ -136,3 +150,40 @@ class SpeedOfSound:
         """
         if GAMMA is config: GAMMA = config.GAMMA
         return SpeedOfSound.a(temp, GAMMA).m * mach
+
+
+
+# ===========================
+# Misc Functions
+# ===========================
+
+def is_property(obj, name):
+    for cls in obj.__class__.mro():
+        if name in cls.__dict__:
+            return isinstance(cls.__dict__[name], property)
+    return False
+
+
+# ===========================
+# Propagator
+# ===========================
+
+class Propagator:
+    
+    def __init__(self):
+        self.queue = deque()
+        self.active = set()
+        
+    def enqueue(self, state):
+        if state.UUID not in self.active:
+            self.queue.append(state)
+            self.active.add(state.UUID)
+            
+    def run(self):
+        while self.queue:            
+            state = self.queue.popleft()
+            self.active.remove(state.UUID)
+            
+            state._propagate_step(self)
+
+

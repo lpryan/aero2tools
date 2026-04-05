@@ -8,6 +8,7 @@ IN:
     T2/T1 (1 or 2)
     P2/P1 (1 or 2)
     r1/r2 (1 or 2)
+    A1/A2 (1 or 2)
     Δθ (1 or 2)
     (1 and 2)
 
@@ -17,6 +18,7 @@ P01 = P02 | T01 = T02 | r01 = r02 | A01 = A02
 class InterIsen(Relation):
     
     def __init__(self, state1: Isen, state2: Isen):
+        super().__init__()
         
         self.state1 = state1
         self.state2 = state2
@@ -25,7 +27,29 @@ class InterIsen(Relation):
         self.state2._parent.append((self.state1, self))
         
         self.state1.attr_pulse()
-        self.state2.attr_pulse()
+        
+    def propagate(self, forward = True):
+        changed = False
+        
+        s1 = self.state1
+        s2 = self.state2
+        
+        if forward and s1.A is not None:
+            new = s1.A * self.A2_A1
+            if s2.A != new:
+                s2.A = new
+                changed = True
+                
+        elif not forward and s2.A is not None:
+            new = s2.A / self.A2_A1
+            if s1.A != new:
+                s1.A = new
+                changed = True
+        
+        changed = super().propagate(forward) or changed
+
+        return changed
+    
         
     # ------------------
     # constructors
@@ -237,88 +261,65 @@ class InterIsen(Relation):
     # properties
     # ------------------
     
+    # --- pressure ---
     @property
     def P2_P1(self):
         return self.state1.P0_P / self.state2.P0_P
     
+    @P2_P1.setter
+    def P2_P1(self, P2P1):
+        config.safe_set(self.state2, "P0_P", self.state1.P0_P / P2P1)
+    
+    # --- temperature ---
     @property
     def T2_T1(self):
         return self.state1.T0_T / self.state2.T0_T
     
+    @T2_T1.setter
+    def T2_T1(self, T2T1):
+        config.safe_set(self.state2, "T0_T", self.state1.T0_T / T2T1)
+        
+    # --- density ---
     @property
     def r2_r1(self):
         return self.state1.r0_r / self.state2.r0_r
     
+    @r2_r1.setter
+    def r2_r1(self, r2r1):
+        config.safe_set(self.state2, "r0_r", self.state1.r0_r / r2r1)
+        
+    # --- ---    
     @property
     def P02_P01(self):
         return 1
     
+    @property
+    def P1_P02(self):
+        return self.state1.P_P0 * self.P02_P01
+    
+    # --- area ---
     @property
     def A2_A1(self):
         return self.state2.A_A0 / self.state1.A_A0
     
     def __getattr__(self, name):
         
+        try:
+            return super().__getattr__(name)
         
-        # get ratios, ex: P0/P1, A0/A1
-        m = re.match(rf"^(P|T|r|A)(0|star)_\1(|1|2)$", name)
-        
-        if m:
-            var, i, j = m.groups()
-            if j == '': j = 1
+        except AttributeError:
             
-            if i == 'star':
-                match var:
-                    case "P": 
-                        return getattr(self, f"state{j}").Pstar_P
-                    case "T": 
-                        return getattr(self, f"state{j}").Tstar_T
-                    case "r": 
-                        return getattr(self, f"state{j}").rstar_r
-                    
-                    case "A":
-                        return getattr(self, f"state{j}").Astar_A
-            
-            elif i == '0':
-                match var:
-                    case "P": 
-                        return getattr(self, f"state{j}").P0_P
-                    case "T": 
-                        return getattr(self, f"state{j}").T0_T
-                    case "r": 
-                        return getattr(self, f"state{j}").r0_r
-                    
-                    case "A":
-                        return getattr(self, f"state{j}").A0_A
-        
-        
-        # get inverse ratios, ex: T1/T0, A2/A0
-        m = re.match(rf"^(P|T|r|A)(1|2)_\1(0|star)$", name)
-        
-        if m:
-            var, i, j = m.groups()
-            return 1 / self.__getattr__(rf"{var}{j}_{var}{i}")
+            match name:
                 
-        
-        # retrive state attributes, ex: P2, T1, mach1
-        m = re.match(rf"^((P|T|r)(star|0)?|mach|vel|mu|nu)(|1|2)$", name)
-        
-        if m:
-            var, i, j, k = m.groups()
-            if k == '': k = 1
-            return getattr(getattr(self, f"state{k}"), f"{var}", None)
-        
-        match name:
+                case "theta":
+                    return self.state2.nu - self.state1.nu
+                
+                case "fwd":
+                    return self.state1.mu
+                
+                case "rwd":
+                    return self.state2.mu - self.theta
             
-            case "theta":
-                return self.state2.nu - self.state1.nu
-            
-            case "fwd":
-                return self.state1.mu
-            
-            case "rwd":
-                return self.state2.mu - self.theta
-        
         raise AttributeError(f"InterIsen does not have this attribute [{name}]")
         
         
