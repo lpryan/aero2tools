@@ -91,6 +91,6 @@ def diff(func, x):
 def diff2(func, x):
     
     f1 = diff(func, x)
-    f2 = optimize.diff(func, x + optimize.h)
+    f2 = diff(func, x + optimize.h)
     
     return (f2 - f1) / optimize.h

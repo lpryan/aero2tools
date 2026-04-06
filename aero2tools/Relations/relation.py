@@ -13,9 +13,6 @@ class Relation:
         self.GAMMA = GAMMA
     
     def propagate(self, forward = True):
-        
-        if forward: print("s1 -> s2")
-        else: print("s1 <- s2")
                 
         changed = False
         
@@ -24,25 +21,25 @@ class Relation:
         
         if forward and s1.T is not None:
             new = s1.T * self.T2_T1
-            if s2.T != new:
+            if not config.approx(s2.T, new):
                 s2.T = new
                 changed = True
                 
         elif not forward and s2.T is not None:
             new = s2.T / self.T2_T1
-            if s1.T != new:
+            if not config.approx(s1.T, new):
                 s1.T = new
                 changed = True
         
         if forward and s1.P is not None:
             new = s1.P * self.P2_P1
-            if s2.P != new:
+            if not config.approx(s2.P, new):
                 s2.P = new
                 changed = True
         
         elif not forward and s2.P is not None:
             new = s2.P / self.P2_P1
-            if s1.P != new:
+            if not config.approx(s1.P, new):
                 s1.P = new
                 changed = True
                 
@@ -120,9 +117,12 @@ class Relation:
             if k == '': k = 1
             return getattr(getattr(self, f"state{k}"), f"{var}", None)
         
+        raise AttributeError(f"Relation does not have this attribute [{name}]")
+        
+        
     def __setattr__(self, name, value):
         
-        _internal_vars = ("GAMMA", "state1", "state2")
+        _internal_vars = ("GAMMA", "state1", "state2", "_beta")
                 
         if name in _internal_vars or is_property(self, name):
             super().__setattr__(name, value)

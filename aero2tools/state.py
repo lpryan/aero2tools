@@ -48,13 +48,7 @@ class Isen:
         setattr(self, "_tracker", None)
         setattr(self, "_updating", False)
         setattr(self, "_generating", True)
-        
-        # star variables
-        self.Tstar_T = None
-        self.Pstar_P = None
-        self.rstar_r = None
-        self.mach_star = None
-        
+                
         # set mach
         self.mach = config.Q_(M)
         
@@ -88,7 +82,16 @@ class Isen:
     @mach.setter
     @config.wrap(None, (None, ''), False)
     def mach(self, mach: float):
+        
+        T_init = getattr(self, 'T', None)
+        P_init = getattr(self, 'P', None)
+        A_init = getattr(self, 'A', None)
+        
         setattr(self, "_mach", config.Q_(mach))
+        
+        self.T = T_init
+        self.P = P_init
+        self.A = A_init
         
         T0_T = 1 + np.pow(self._mach, 2) * (self.GAMMA - 1)/2
         P0_P = np.pow(T0_T, (self.GAMMA)/(self.GAMMA - 1))
@@ -97,18 +100,24 @@ class Isen:
         k = (self.GAMMA + 1) / 2
         
         A_A0 = AA0Mach(self._mach, self.GAMMA)
-        
-        # Tstar_T = T0_T / k
-        # Pstar_P = P0_P / np.pow(k, (self.GAMMA)/(self.GAMMA - 1))
-        # rstar_r = r0_r / np.pow(k, 1/(self.GAMMA - 1))
-        # Astar_A = np.pow(Tstar_T/k, k/(self.GAMMA - 1))
-        # mach_star = self._mach / np.sqrt(Tstar_T)
-        
+                
         setattr(self, "_T0_T", T0_T)
         setattr(self, "_P0_P", P0_P)
         setattr(self, "_r0_r", r0_r)
         
         setattr(self, "_A_A0", A_A0)
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     # -- T0/T --
     @property
@@ -247,10 +256,13 @@ class Isen:
     def from_nu(nu2, GAMMA: Config | float = config, **kwargs):
         if isinstance(GAMMA, Config): GAMMA = GAMMA.GAMMA
         
+        if isinstance(nu2, config.Q_): 
+            nu2 = config.Q_(nu2).to('rad').m
+        
         sys = optimize(lambda M: nuMach(M, GAMMA))
         
         sys.addGeq(1)
-        mach = sys.target(1 + 1e-5, nu2)
+        mach = sys.target(2, nu2)
         
         return Isen(mach, **kwargs)
     
@@ -274,8 +286,6 @@ class Isen:
         
     def _propagate_step(self, propagator: Propagator):
         
-        print(f'== {hex(id(self))} ==')
-        
         # propagate to children
         for child, rel in self._children:
             
@@ -283,9 +293,6 @@ class Isen:
             
             if changed:
                 propagator.enqueue(child)
-                
-        print('-----------')
-        
         
         # propagate to parents
         for parent, rel in self._parent:
@@ -294,8 +301,8 @@ class Isen:
             
             if changed:
                 propagator.enqueue(parent)
-    
-        print('===')
+        
+        
     
     # ----------------------------------
     # Attribute Accessor / Modifier
@@ -359,13 +366,11 @@ class Isen:
         # propagation
         if (name in _internal_var) or (name in _variables and getattr(self, "_generating", False)): pass
         elif changed and not getattr(self, "_propagating", False) and not getattr(self, "_generating", False):
-            print(f"[{name}]")
             self.attr_pulse()
         
 
         if getattr(self, "T", None) is not None:
             super().__setattr__("vel", SpeedOfSound.vel(self.T, self.mach))
-            changed = True
         
         # return which variables are none    
         validIdealGas = [i for i in ("T", "P", "r") if getattr(self, f"{i}", None) is None]
@@ -433,7 +438,7 @@ class Isen:
         m = re.match(r"^(T|P|r)star_\1$", name)
         
         if m:
-            var = m.groups()
+            var = m.groups()[0]
         
             k = (self.GAMMA + 1) / 2
             
@@ -457,14 +462,14 @@ class Isen:
         if m:
             var, i = m.groups()
             
-            if getattr(self, f'{var}', None):
+            if getattr(self, f'{var}', None) is None:
                 return None
             
             if i == '0':
                 return getattr(self, f"{var}") * getattr(self, f"{var}0_{var}")
 
             else:
-                return getattr(self, f"{var}") * getattr(self, f"{var}star_{var}")
+                return getattr(self, f"{var}") * self.__getattr__(f"{var}star_{var}")
         
         raise AttributeError(f"Isen does not have this attribute [{name}]")
     

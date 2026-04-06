@@ -31,6 +31,13 @@ class Config:
     def CV(self):
         return self.R / (self.GAMMA - 1)
     
+    def approx(self, a, b, tol = None):
+        if tol is None: tol = self.EPS
+        if (a is None) or (b is None): return False
+        return (self.Q_(abs(a - b)).to_base_units().m < self.EPS)
+        
+    
+    
     def safe_set(self, obj, attr, value):
         current = getattr(obj, attr)
         

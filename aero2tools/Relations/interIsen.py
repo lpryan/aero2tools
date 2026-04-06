@@ -36,13 +36,13 @@ class InterIsen(Relation):
         
         if forward and s1.A is not None:
             new = s1.A * self.A2_A1
-            if s2.A != new:
+            if not config.approx(s2.A, new):
                 s2.A = new
                 changed = True
                 
         elif not forward and s2.A is not None:
             new = s2.A / self.A2_A1
-            if s1.A != new:
+            if not config.approx(s1.A, new):
                 s1.A = new
                 changed = True
         
