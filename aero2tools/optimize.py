@@ -26,6 +26,11 @@ class optimize:
             sum([(1) if (g[0](x) > 0) else (0) for g in self.INEQ]) + \
             p * sum([max(g[0](x), 0)**2 for g in self.INEQ])
             
+    def purgeCon(self):
+        '''remove all constrains'''
+        self.INEQ = []
+        self.EQ = []
+            
     def addLeq(self, val):
         self.addIneq(val, False)
     
