@@ -130,6 +130,26 @@ class Oblique(Relation):
         inter = Oblique(state1, beta_opt)
         return inter
     
+    @staticmethod
+    def from_thetaBeta(theta, beta):
+        Q_ = config.Q_
+        
+        THETA = Q_(theta).to('rad').m
+        BETA = Q_(beta).to('rad').m
+                
+        sys = optimize(lambda M: thetaMachBeta(M, BETA))
+                
+        mach = sys.target(10, THETA)
+        
+        print(mach)
+        
+        state1 = Isen(mach)        
+        
+        inter = Oblique(state1, BETA)
+        return inter      
+        
+    
+    
     
     
     

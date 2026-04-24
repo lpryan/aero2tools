@@ -35,8 +35,6 @@ class Config:
         if tol is None: tol = self.EPS
         if (a is None) or (b is None): return False
         return (self.Q_(abs(a - b)).to_base_units().m < self.EPS)
-        
-    
     
     def safe_set(self, obj, attr, value):
         current = getattr(obj, attr)
@@ -50,6 +48,29 @@ class Config:
             return True
         
         return False
+    
+    @staticmethod
+    def ratio_check(x1x2 = None, x1 = None, x2 = None, funcName = '', strict = True):
+        if funcName != '': funcName = f"({funcName})"
+        
+        if x1x2 is None and (x1 is None or x2 is None):
+            if strict: raise ValueError(f"Not enough inputs {funcName}")
+            else: pass
+        
+        elif x1x2 is None:
+            x1x2 = x1 / x2
+        
+        elif (x1x2 is not None):
+            
+            if x1 is not None:
+                x2 = x1 / x1x2
+                
+            elif x2 is not None:
+                x1 = x1x2 * x2
+        
+        return [x1x2, x1, x2]
+       
+    
     
     def wrap(self, out_unit, in_units, strict = True):
         pint_decorator = self.ur.wraps(out_unit, in_units, strict)

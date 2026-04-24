@@ -7,6 +7,8 @@ if TYPE_CHECKING:
     from .Relations.relation import Relation
     from .Relations.interIsen import InterIsen
     from .Relations.normal import Normal
+    from .Relations.oblique import Oblique
+    from .Relations.rayleigh import Rayleigh
 
 import numpy as np
 import re
@@ -31,11 +33,18 @@ def AA0Mach(mach, GAMMA = config):
     if isinstance(GAMMA, Config):
         GAMMA = GAMMA.GAMMA    
     
-    k = (GAMMA + 1)/2
-    T0T = 1 + (GAMMA - 1)/2 * mach**2
-    AA0t = np.pow(T0T/k, k/(GAMMA - 1)) / mach
-    return AA0t
-
+    gp = GAMMA + 1
+    gm = GAMMA - 1
+    msq = mach*mach
+    
+    AA0t = 1/msq * np.pow(2/gp * (1 + gm/2*msq), gp/gm)
+    
+    
+    
+    # k = (GAMMA + 1)/2
+    # T0T = 1 + (GAMMA - 1)/2 * mach**2
+    # AA0t = np.pow(T0T/k, k/(GAMMA - 1)) / mach
+    return np.sqrt(AA0t)
 
 class Isen:
     
@@ -53,8 +62,18 @@ class Isen:
         self.mach = config.Q_(M)
         
         # variables
-        self.T  = kwargs.get("T", None)        
-        self.P  = kwargs.get("P",  None)
+        if kwargs.get('T0', None) is None:
+            self.T  = kwargs.get("T",  None)
+        else:
+            self.T0 = kwargs.get('T0', None)
+        
+        
+        if kwargs.get('P0', None) is None:
+            self.P  = kwargs.get("P",  None)
+        else:
+            self.P0 = kwargs.get('P0', None)
+        
+        
         
         if (self.T is None) or (self.P is None):
             self.r  = kwargs.get("r",  None)
@@ -62,7 +81,6 @@ class Isen:
             self.r = IdealGas.dens(self.P, self.T)
             
         self.A  = kwargs.get("A",  None)
-        self.A0 = kwargs.get("A0", None) if (self.A is None) else None
         
         if getattr(self, 'vel', None) is None:
             self.vel = kwargs.get("vel", None)
@@ -172,88 +190,71 @@ class Isen:
     # ----------------------------------
     
     # --- temperature ---
-    @staticmethod
-    def from_temp(T0T: float | None = None, T0: float | None = None, T: float | None = None, GAMMA: Config | float = config):
+    @classmethod
+    def from_temp(cls, T0T: float | None = None, T0: float | None = None, T: float | None = None, GAMMA: Config | float = config):
         if isinstance(GAMMA, Config): GAMMA = GAMMA.GAMMA
 
-        if T0T is None and (T0 is None or T is None):
-            raise ValueError("Not enough inputs (Isen.from_temp)")
-        
-        elif T0T is None:
-            T0T = T0 / T
-        
+        [T0T, T0, T] = config.ratio_check(T0T, T0, T, 'Isen.from_temp')
+       
         mach = np.sqrt(2 / (GAMMA - 1) * (T0T - 1))
-        return Isen(mach, T = T, T0 = T0, GAMMA = GAMMA)
+        return cls(mach, T = T, T0 = T0, GAMMA = GAMMA)
     
     # --- pressure ---
-    @staticmethod
-    def from_pres(P0P: float | None = None, P0: float | None = None, P: float | None = None, GAMMA: Config | float = config):
+    @classmethod
+    def from_pres(cls, P0P: float | None = None, P0: float | None = None, P: float | None = None, GAMMA: Config | float = config):
         if isinstance(GAMMA, Config): GAMMA = GAMMA.GAMMA
         
-        if P0P is None and (P0 is None or P is None):
-            raise ValueError("Not enough inputs (Isen.from_pres)")
-        
-        elif P0P is None:
-            P0P = P0 / P
+        [P0P, P0, P] = config.ratio_check(P0P, P0, P, 'Isen.from_pres')
             
         mach = np.sqrt(2/(GAMMA - 1) * (np.pow(P0P, (GAMMA - 1)/(GAMMA)) - 1))
         
-        return Isen(mach, P = P, P0 = P, GAMMA = GAMMA)
+        return cls(mach, P = P, P0 = P0, GAMMA = GAMMA)
     
     # --- density ---
-    @staticmethod
-    def from_dens(r0_r: float | None = None, r0: float | None = None, r: float | None = None, GAMMA: Config | float = config):
+    @classmethod
+    def from_dens(cls, r0r: float | None = None, r0: float | None = None, r: float | None = None, GAMMA: Config | float = config):
         if isinstance(GAMMA, Config): GAMMA = GAMMA.GAMMA
         
-        if r0r is None and (r0 is None or r is None):
-            raise ValueError("Not enough inputs (Isen.from_dens)")
-        
-        elif r0r is None:
-            r0r = r0 / r
-            
+        [r0r, r0, r] = config.ratio_check(r0r, r0, r, 'Isen.from_dens')
+                    
         mach = np.sqrt(2/(GAMMA - 1) * (np.pow(r0r, (GAMMA - 1)/(GAMMA)) - 1))
         
-        return Isen(mach, r = r, r0 = r0, GAMMA = GAMMA)
+        return cls(mach, r = r, r0 = r0, GAMMA = GAMMA)
         
     # --- area ---
-    @staticmethod
-    def from_area(AA0: float | None = None, A0: float | None = None, A: float | None = None, GAMMA: Config | float = config, sup = True):
+    @classmethod
+    def from_area(cls, AA0: float | None = None, A0: float | None = None, A: float | None = None, GAMMA: Config | float = config, sup = True):
         if isinstance(GAMMA, Config): GAMMA = GAMMA.GAMMA
         
-        if AA0 is None and (A0 is None or A is None):
-            raise ValueError("Not enough inputs (Isen.from_area)")
-        
-        elif AA0 is None:
-            AA0 = A / A0
-        
+        [AA0, A, A0] = config.ratio_check(AA0, A, A0, 'Isen.from_area')
+                
         if (config.Q_(AA0).to('').m < 1):
             raise ValueError(f"Area Ratio is invalid (Isen.from_area) [{AA0:.3f} < 1]")
-        
-        
+                
         
         sys = optimize(lambda M: AA0Mach(M, GAMMA))
 
         if sup:
             sys.addGeq(1)
-            mach = sys.target(1 + 1e-5, AA0)
+            mach = sys.target(3, AA0)
         
         else:
             sys.addLeq(1)
-            mach = sys.target(1e-5, AA0)
+            mach = sys.target(0.1, AA0)
         
-        return Isen(mach, A = A, A0 = A0, GAMMA = GAMMA)
+        return cls(mach, A = A, A0 = A0, GAMMA = GAMMA)
     
     # --- vel ---
-    @staticmethod
-    def from_vel(temp: float, vel: float, GAMMA: Config | float = config):
+    @classmethod
+    def from_vel(clc, temp: float, vel: float, GAMMA: Config | float = config):
         if isinstance(GAMMA, Config): GAMMA = GAMMA.GAMMA
         
         mach = SpeedOfSound.mach(temp, vel)
         
-        return Isen(mach, T = temp, GAMMA = GAMMA)
+        return clc(mach, T = temp, GAMMA = GAMMA)
     
-    @staticmethod
-    def from_nu(nu2, GAMMA: Config | float = config, **kwargs):
+    @classmethod
+    def from_nu(clc, nu2, GAMMA: Config | float = config, **kwargs):
         if isinstance(GAMMA, Config): GAMMA = GAMMA.GAMMA
         
         if isinstance(nu2, config.Q_): 
@@ -264,7 +265,7 @@ class Isen:
         sys.addGeq(1)
         mach = sys.target(2, nu2)
         
-        return Isen(mach, **kwargs)
+        return clc(mach, **kwargs)
     
     
     
@@ -426,6 +427,11 @@ class Isen:
                 
             case "A0_A":
                 return 1 / self.A_A0
+            
+            case "mdot":
+                if (self.A is None or self.r is None or self.vel is None): return None
+                return self.A * self.r * self.vel
+            
         
         # inverse ratios    
         m = re.match(r"^(T|P|r)_\1(0)$", name)
@@ -457,15 +463,18 @@ class Isen:
         
         
         # ratio derived values
-        m = re.match(r"^(T|P|r)(0|star)$", name)
-        
+        m = re.match(r"^(T|P|r|A)(0|star)$", name)
+                
         if m:
             var, i = m.groups()
             
-            if getattr(self, f'{var}', None) is None:
+            if var == 'A' and i == 'star':
+                return self.__getattr__('A0')            
+              
+            elif getattr(self, f'{var}', None) is None:
                 return None
             
-            if i == '0':
+            elif i == '0':
                 return getattr(self, f"{var}") * getattr(self, f"{var}0_{var}")
 
             else:

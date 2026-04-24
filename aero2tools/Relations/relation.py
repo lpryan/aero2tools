@@ -19,30 +19,46 @@ class Relation:
         s1 = self.state1
         s2 = self.state2
         
-        if forward and s1.T is not None:
-            new = s1.T * self.T2_T1
-            if not config.approx(s2.T, new):
-                s2.T = new
-                changed = True
-                
-        elif not forward and s2.T is not None:
-            new = s2.T / self.T2_T1
-            if not config.approx(s1.T, new):
-                s1.T = new
-                changed = True
         
-        if forward and s1.P is not None:
-            new = s1.P * self.P2_P1
-            if not config.approx(s2.P, new):
-                s2.P = new
-                changed = True
-        
-        elif not forward and s2.P is not None:
-            new = s2.P / self.P2_P1
-            if not config.approx(s1.P, new):
-                s1.P = new
-                changed = True
-                
+        if forward:
+            
+            if s1.T is not None:
+                new = s1.T * self.T2_T1
+                if not config.approx(s2.T, new):
+                    s2.T = new
+                    changed = True
+            
+            if s1.P is not None:
+                new = s1.P * self.P2_P1
+                if not config.approx(s2.P, new):
+                    s2.P = new
+                    changed = True
+                    
+            if s1.A is not None:
+                new = s1.A * self.A2_A1
+                if not config.approx(s2.A, new):
+                    s2.A = new
+                    changed = True
+                        
+        else: # not forward (backward)
+            
+            if s2.T is not None:
+                new = s2.T / self.T2_T1
+                if not config.approx(s1.T, new):
+                    s1.T = new
+                    changed = True
+            
+            if s2.P is not None:
+                new = s2.P / self.P2_P1
+                if not config.approx(s1.P, new):
+                    s1.P = new
+                    changed = True
+                    
+            if s2.A is not None:
+                new = s2.A / self.A2_A1
+                if not config.approx(s1.A, new):
+                    s1.A = new
+                    changed = True
         
         return changed
     
@@ -62,6 +78,11 @@ class Relation:
     @property
     def P02_P01(self):
         return None
+    
+    @property
+    def A2_A1(self):
+        return self.state2.A_A0 / self.state1.A_A0
+    
     
     @property
     def entropy(self):

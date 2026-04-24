@@ -68,11 +68,8 @@ class Normal(Relation):
     @staticmethod
     def from_temp(T2_T1 = None, T1 = None, T2 = None):
         
-        if (T2_T1 is None) and (T1 is None or T2 is None):
-            raise ValueError("Not enough inputs (Normal.from_temp)")
-        elif (T2_T1 is None):
-            T2_T1 = T2 / T1
-        
+        [T2_T1, T2, T1] = config.ratio_check(T2_T1, T2, T1, 'Normal.from_temp')
+                
         state1 = Isen(2, T = T1)
         nrm = Normal(state1)
         nrm.T2_T1 = T2_T1
