@@ -1,7 +1,10 @@
 .vscode/
 .venv/
 .pytest_cache/
-examples/
+examples/*
 
 build.sh
 test.sh
+
+dist/
+aero2tools.egg-info/*
