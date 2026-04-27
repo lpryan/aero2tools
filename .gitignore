@@ -8,3 +8,6 @@ test.sh
 
 dist/
 aero2tools.egg-info/*
+
+./aero2tools/pytest_cache
+./tests/pytest_cache
