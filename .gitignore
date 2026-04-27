@@ -9,5 +9,8 @@ test.sh
 dist/
 aero2tools.egg-info/*
 
-./aero2tools/pytest_cache
-./tests/pytest_cache
+aero2tools/pytest_cache/
+aero2tools/aero2tools.egg-info/
+aero2tools/cpp/
+
+tests/__pycache__/
